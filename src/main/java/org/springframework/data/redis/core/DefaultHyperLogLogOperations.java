@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 the original author or authors.
+ * Copyright 2014-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -22,11 +22,12 @@ import org.springframework.data.redis.connection.RedisConnection;
 
 /**
  * @author Christoph Strobl
+ * @author Mark Paluch
  * @since 1.5
  * @param <K>
  * @param <V>
  */
-public class DefaultHyperLogLogOperations<K, V> extends AbstractOperations<K, V> implements HyperLogLogOperations<K, V> {
+class DefaultHyperLogLogOperations<K, V> extends AbstractOperations<K, V> implements HyperLogLogOperations<K, V> {
 
 	public DefaultHyperLogLogOperations(RedisTemplate<K, V> template) {
 		super(template);

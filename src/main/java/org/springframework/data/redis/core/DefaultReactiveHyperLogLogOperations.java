@@ -15,7 +15,6 @@
  */
 package org.springframework.data.redis.core;
 
-import org.springframework.data.redis.serializer.RedisSerializationContext;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -24,6 +23,7 @@ import java.util.function.Function;
 
 import org.reactivestreams.Publisher;
 import org.springframework.data.redis.connection.ReactiveHyperLogLogCommands;
+import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.util.Assert;
 
 /**
@@ -33,7 +33,7 @@ import org.springframework.util.Assert;
  * @auhtor Christoph Strobl
  * @since 2.0
  */
-public class DefaultReactiveHyperLogLogOperations<K, V> implements ReactiveHyperLogLogOperations<K, V> {
+class DefaultReactiveHyperLogLogOperations<K, V> implements ReactiveHyperLogLogOperations<K, V> {
 
 	private final ReactiveRedisTemplate<?, ?> template;
 	private final RedisSerializationContext<K, V> serializationContext;

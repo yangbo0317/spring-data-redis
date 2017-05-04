@@ -41,7 +41,7 @@ import org.springframework.util.Assert;
  * @author Christoph Strobl
  * @since 2.0
  */
-public class DefaultReactiveValueOperations<K, V> implements ReactiveValueOperations<K, V> {
+class DefaultReactiveValueOperations<K, V> implements ReactiveValueOperations<K, V> {
 
 	private final ReactiveRedisTemplate<?, ?> template;
 	private final RedisSerializationContext<K, V> serializationContext;

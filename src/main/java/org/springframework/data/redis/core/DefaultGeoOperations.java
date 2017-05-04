@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 the original author or authors.
+ * Copyright 2016-2017 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -34,13 +34,14 @@ import org.springframework.data.redis.connection.RedisGeoCommands.GeoRadiusComma
  *
  * @author Ninad Divadkar
  * @author Christoph Strobl
+ * @author Mark Paluch
  * @since 1.8
  */
-public class DefaultGeoOperations<K, M> extends AbstractOperations<K, M> implements GeoOperations<K, M> {
+class DefaultGeoOperations<K, M> extends AbstractOperations<K, M> implements GeoOperations<K, M> {
 
 	/**
 	 * Creates new {@link DefaultGeoOperations}.
-	 * 
+	 *
 	 * @param template must not be {@literal null}.
 	 */
 	DefaultGeoOperations(RedisTemplate<K, M> template) {

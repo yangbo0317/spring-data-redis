@@ -39,7 +39,7 @@ import org.springframework.util.Assert;
  * @author Christoph Strobl
  * @since 2.0
  */
-public class DefaultReactiveListOperations<K, V> implements ReactiveListOperations<K, V> {
+class DefaultReactiveListOperations<K, V> implements ReactiveListOperations<K, V> {
 
 	private final ReactiveRedisTemplate<?, ?> template;
 	private final RedisSerializationContext<K, V> serializationContext;

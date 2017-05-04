@@ -44,7 +44,7 @@ import org.springframework.util.Assert;
  * @author Christoph Strobl
  * @since 2.0
  */
-public class DefaultReactiveGeoOperations<K, V> implements ReactiveGeoOperations<K, V> {
+class DefaultReactiveGeoOperations<K, V> implements ReactiveGeoOperations<K, V> {
 
 	private final ReactiveRedisTemplate<?, ?> template;
 	private final RedisSerializationContext<K, V> serializationContext;

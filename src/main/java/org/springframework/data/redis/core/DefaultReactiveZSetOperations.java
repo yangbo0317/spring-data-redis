@@ -43,7 +43,7 @@ import org.springframework.util.Assert;
  * @author Christoph Strobl
  * @since 2.0
  */
-public class DefaultReactiveZSetOperations<K, V> implements ReactiveZSetOperations<K, V> {
+class DefaultReactiveZSetOperations<K, V> implements ReactiveZSetOperations<K, V> {
 
 	private final ReactiveRedisTemplate<?, ?> template;
 	private final RedisSerializationContext<K, V> serializationContext;
