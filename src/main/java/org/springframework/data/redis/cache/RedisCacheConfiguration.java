@@ -56,8 +56,8 @@ public class RedisCacheConfiguration {
 	/**
 	 * Default {@link RedisCacheConfiguration} using the following:
 	 * <dl>
-	 * <dt>entry timeout</dt>
-	 * <dd>0 ms</dd>
+	 * <dt>key expiration</dt>
+	 * <dd>eternal</dd>
 	 * <dt>cache null values</dt>
 	 * <dd>yes</dd>
 	 * <dt>prefix cache keys</dt>
@@ -85,6 +85,8 @@ public class RedisCacheConfiguration {
 	 * @return new {@link RedisCacheConfiguration}.
 	 */
 	public RedisCacheConfiguration entryTimeout(Duration timeout) {
+
+		Assert.notNull(timeout, "Timeout must not be null!");
 		return new RedisCacheConfiguration(timeout, cacheNullValues, usePrefix, defaultPrefix, keySerializationPair,
 				valueSerializationPair);
 	}
@@ -165,15 +167,15 @@ public class RedisCacheConfiguration {
 		return cacheNullValues != null ? cacheNullValues.booleanValue() : true;
 	}
 
-	public SerializationPair<String> getKeySerializationPair() {
+	SerializationPair<String> getKeySerializationPair() {
 		return keySerializationPair;
 	}
 
-	public SerializationPair getValueSerializationPair() {
+	SerializationPair getValueSerializationPair() {
 		return valueSerializationPair;
 	}
 
-	public Duration getTimeout() {
+	Duration getTimeout() {
 		return timeout != null ? timeout : Duration.ZERO;
 	}
 

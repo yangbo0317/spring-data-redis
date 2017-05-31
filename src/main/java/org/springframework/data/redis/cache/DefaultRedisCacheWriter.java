@@ -37,7 +37,7 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 			.getBytes(Charset.forName("UTF-8"));
 
 	private final RedisConnectionFactory connectionFactory;
-	private final Duration lockTimeout;
+	private final Duration sleepTime;
 
 	/**
 	 * @param connectionFactory must not be {@literal null}.
@@ -48,19 +48,33 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 
 	/**
 	 * @param connectionFactory must not be {@literal null}.
-	 * @param lockTimeout must not be {@literal null}. Use {@link Duration#ZERO} to disable locking.
+	 * @param sleepTime sleep time between lock request attempts. Must not be {@literal null}. Use {@link Duration#ZERO}
+	 *          to disable locking.
 	 */
-	DefaultRedisCacheWriter(RedisConnectionFactory connectionFactory, Duration lockTimeout) {
+	DefaultRedisCacheWriter(RedisConnectionFactory connectionFactory, Duration sleepTime) {
 
 		Assert.notNull(connectionFactory, "ConnectionFactory must not be null!");
-		Assert.notNull(lockTimeout, "LockTimeout must not be null!");
+		Assert.notNull(sleepTime, "SleepTime must not be null!");
 
 		this.connectionFactory = connectionFactory;
-		this.lockTimeout = lockTimeout;
+		this.sleepTime = sleepTime;
+	}
+
+	public static DefaultRedisCacheWriter nonLockingRedisCacheWriter(RedisConnectionFactory connectionFactory) {
+		return new DefaultRedisCacheWriter(connectionFactory);
+	}
+
+	public static DefaultRedisCacheWriter lockingRedisCacheWriter(RedisConnectionFactory connectionFactory) {
+		return new DefaultRedisCacheWriter(connectionFactory, Duration.ofMillis(50));
 	}
 
 	@Override
 	public void put(String name, byte[] key, byte[] value, Duration ttl) {
+
+		Assert.notNull(name, "Name must not be null!");
+		Assert.notNull(key, "Key must not be null!");
+		Assert.notNull(value, "Value must not be null!");
+		Assert.notNull(ttl, "Ttl must not be null!");
 
 		execute(name, connection -> {
 
@@ -76,11 +90,20 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 
 	@Override
 	public byte[] get(String name, byte[] key) {
+
+		Assert.notNull(name, "Name must not be null!");
+		Assert.notNull(key, "Key must not be null!");
+
 		return execute(name, connection -> connection.get(key));
 	}
 
 	@Override
 	public byte[] putIfAbsent(String name, byte[] key, byte[] value, Duration ttl) {
+
+		Assert.notNull(name, "Name must not be null!");
+		Assert.notNull(key, "Key must not be null!");
+		Assert.notNull(value, "Value must not be null!");
+		Assert.notNull(ttl, "Ttl must not be null!");
 
 		return execute(name, connection -> {
 
@@ -98,11 +121,15 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 
 	@Override
 	public void remove(String name, byte[] key) {
+
+		Assert.notNull(name, "Name must not be null!");
+		Assert.notNull(key, "Key must not be null!");
+
 		execute(name, connection -> connection.del(key));
 	}
 
 	public void lock(String name) {
-		executeWithoutLockCheck(connection -> doLock(name, connection));
+		execute(name, connection -> doLock(name, connection));
 	}
 
 	private Boolean doLock(String name, RedisConnection connection) {
@@ -128,27 +155,32 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 	@Override
 	public void clean(String name, byte[] pattern) {
 
-		RedisConnection connection = connectionFactory.getConnection();
+		Assert.notNull(name, "Name must not be null!");
+		Assert.notNull(pattern, "Pattern must not be null!");
 
-		if (isLockingCacheWriter()) {
-			doLock(name, connection);
-		}
-
-		try {
-			if (connection instanceof RedisClusterConnection) {
-
-				byte[][] keys = connection.keys(pattern).stream().toArray(size -> new byte[size][]);
-				connection.del(keys);
-			} else {
-				connection.eval(CLEAN_SCRIPT, ReturnType.INTEGER, 0, pattern);
-			}
-		} finally {
+		execute(name, connection -> {
 
 			if (isLockingCacheWriter()) {
-				doUnlock(name, connection);
+				doLock(name, connection);
 			}
-			connection.close();
-		}
+
+			try {
+				if (connection instanceof RedisClusterConnection) {
+
+					byte[][] keys = connection.keys(pattern).stream().toArray(size -> new byte[size][]);
+					connection.del(keys);
+				} else {
+					connection.eval(CLEAN_SCRIPT, ReturnType.INTEGER, 0, pattern);
+				}
+			} finally {
+
+				if (isLockingCacheWriter()) {
+					doUnlock(name, connection);
+				}
+			}
+
+			return "OK";
+		});
 	}
 
 	public <T> T execute(String name, ConnectionCallback<T> callback) {
@@ -156,7 +188,7 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 		RedisConnection connection = connectionFactory.getConnection();
 		try {
 
-			checkAndPotentiallyWaitForLock(name, connection);
+			checkAndPotentiallyWaitUntilUnlocked(name, connection);
 			return callback.doWithConnection(connection);
 		} finally {
 			connection.close();
@@ -175,14 +207,14 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 	}
 
 	public boolean isLockingCacheWriter() {
-		return !lockTimeout.isZero() && !lockTimeout.isNegative();
+		return !sleepTime.isZero() && !sleepTime.isNegative();
 	}
 
-	private void checkAndPotentiallyWaitForLock(String name, RedisConnection connection) {
+	private void checkAndPotentiallyWaitUntilUnlocked(String name, RedisConnection connection) {
 
 		if (isLockingCacheWriter()) {
 
-			long timeout = lockTimeout.toMillis();
+			long timeout = sleepTime.toMillis();
 
 			while (doCheckLock(name, connection)) {
 				try {

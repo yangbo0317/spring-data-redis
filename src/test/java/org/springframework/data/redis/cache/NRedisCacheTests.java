@@ -23,22 +23,30 @@ import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
 import java.nio.charset.Charset;
+import java.util.Collection;
 import java.util.Date;
 import java.util.function.Consumer;
 
+import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.junit.runners.Parameterized.Parameters;
 import org.springframework.cache.Cache.ValueWrapper;
 import org.springframework.cache.support.NullValue;
+import org.springframework.data.redis.ConnectionFactoryTracker;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
+import org.springframework.data.redis.serializer.RedisSerializationContext.SerializationPair;
+import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
  * @author Christoph Strobl
  */
+@RunWith(Parameterized.class)
 public class NRedisCacheTests {
 
 	String key = "key-1";
@@ -46,26 +54,41 @@ public class NRedisCacheTests {
 	byte[] binaryCacheKey = cacheKey.getBytes(Charset.forName("UTF-8"));
 
 	Person sample = new Person("calmity", new Date());
-	byte[] binarySample = new JdkSerializationRedisSerializer().serialize(sample);
+	byte[] binarySample;
 
 	NullValue nullValue = NullValue.class.cast(ReflectionTestUtils.getField(NullValue.class, "INSTANCE"));
 	byte[] binaryNullValue = new JdkSerializationRedisSerializer().serialize(nullValue);
 
 	RedisConnectionFactory connectionFactory;
+	RedisSerializer serializer;
 	NRedisCache cache;
+
+	public NRedisCacheTests(RedisConnectionFactory connectionFactory, RedisSerializer serializer) {
+
+		this.connectionFactory = connectionFactory;
+		this.serializer = serializer;
+		this.binarySample = serializer.serialize(sample);
+
+		ConnectionFactoryTracker.add(connectionFactory);
+	}
+
+	@Parameters(name = "{index}: {0} & {1}")
+	public static Collection<Object[]> testParams() {
+		return CacheTestParams.connectionFactoriesAndSerializers();
+	}
+
+	@AfterClass
+	public static void cleanUpResources() {
+		ConnectionFactoryTracker.cleanUp();
+	}
 
 	@Before
 	public void setUp() {
 
-		JedisConnectionFactory cf = new JedisConnectionFactory();
-		cf.afterPropertiesSet();
-
-		connectionFactory = cf;
-
 		doWithConnection(RedisConnection::flushAll);
 
 		cache = new NRedisCache("cache", new DefaultRedisCacheWriter(connectionFactory),
-				RedisCacheConfiguration.defaultCacheConfig());
+				RedisCacheConfiguration.defaultCacheConfig().serializeValuesWith(SerializationPair.fromSerializer(serializer)));
 	}
 
 	@Test // DATAREDIS-481
