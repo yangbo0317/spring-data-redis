@@ -100,7 +100,7 @@ public class NRedisCache extends AbstractValueAdaptingCache {
 	}
 
 	@Override
-	public <T> T get(Object key, Callable<T> valueLoader) {
+	public synchronized <T> T get(Object key, Callable<T> valueLoader) {
 
 		ValueWrapper result = get(key);
 
@@ -119,7 +119,10 @@ public class NRedisCache extends AbstractValueAdaptingCache {
 		Object cacheValue = preProcessCacheValue(value);
 
 		if (!isAllowNullValues() && cacheValue == null) {
-			return;
+
+			throw new IllegalArgumentException(String.format(
+					"Cache '%s' does not allow 'null' values. Avoid storing null via '@Cacheable(unless=\"#result == null\")' or configure RedisCache to allow 'null' via RedisCacheConfiguration.",
+					name));
 		}
 
 		cacheWriter.put(name, createAndConvertCacheKey(key), serializeCacheValue(cacheValue), cacheConfig.getTimeout());

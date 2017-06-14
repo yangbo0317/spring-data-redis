@@ -19,10 +19,12 @@ package org.springframework.data.redis.cache;
 import static org.junit.Assert.*;
 import static org.springframework.data.redis.matcher.RedisTestMatchers.*;
 
+import org.hamcrest.core.IsInstanceOf;
 import org.junit.Before;
 import org.junit.Test;
 import org.springframework.cache.Cache;
 import org.springframework.cache.Cache.ValueWrapper;
+import org.springframework.data.redis.core.RedisTemplate;
 
 /**
  * Test for native cache implementations.
@@ -66,7 +68,7 @@ public abstract class AbstractNativeCacheTest<T> {
 
 	@Test
 	public void testNativeCache() throws Exception {
-		assertSame(nativeCache, cache.getNativeCache());
+		assertThat(cache.getNativeCache(), IsInstanceOf.instanceOf(RedisTemplate.class));
 	}
 
 	@Test
