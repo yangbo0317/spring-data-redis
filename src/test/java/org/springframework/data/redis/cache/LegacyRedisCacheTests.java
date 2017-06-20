@@ -13,7 +13,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.springframework.data.redis.cache;
 
 import static edu.umd.cs.mtc.TestFramework.*;
@@ -52,6 +51,9 @@ import org.springframework.data.redis.core.AbstractOperationsTestParams;
 import org.springframework.data.redis.core.RedisTemplate;
 
 /**
+ * Tests moved over from 1.x line RedisCache implementation. Just removed somme of the limitations/assumtions previously
+ * required.
+ *
  * @author Costin Leau
  * @author Jennifer Hickey
  * @author Christoph Strobl
@@ -59,7 +61,7 @@ import org.springframework.data.redis.core.RedisTemplate;
  */
 @SuppressWarnings("rawtypes")
 @RunWith(Parameterized.class)
-public class NRedisCacheTest {
+public class LegacyRedisCacheTests {
 
 	final static String CACHE_NAME = "testCache";
 	ObjectFactory<Object> keyFactory;
@@ -69,8 +71,8 @@ public class NRedisCacheTest {
 
 	NRedisCache cache;
 
-	public NRedisCacheTest(RedisTemplate template, ObjectFactory<Object> keyFactory, ObjectFactory<Object> valueFactory,
-			boolean allowCacheNullValues) {
+	public LegacyRedisCacheTests(RedisTemplate template, ObjectFactory<Object> keyFactory,
+								 ObjectFactory<Object> valueFactory, boolean allowCacheNullValues) {
 
 		this.connectionFactory = template.getConnectionFactory();
 		this.keyFactory = keyFactory;
@@ -111,7 +113,7 @@ public class NRedisCacheTest {
 	private NRedisCache createCache() {
 
 		RedisCacheConfiguration cacheConfiguration = RedisCacheConfiguration.defaultCacheConfig()
-				.entryTimeout(Duration.ofSeconds(10));
+				.entryTtl(Duration.ofSeconds(10));
 		if (!allowCacheNullValues) {
 			cacheConfiguration = cacheConfiguration.disableCachingNullValues();
 		}

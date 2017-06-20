@@ -44,6 +44,9 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
+ * Tests for {@link NRedisCache} with {@link DefaultRedisCacheWriter} using different {@link RedisSerializer} and
+ * {@link RedisConnectionFactory} pairs.
+ *
  * @author Christoph Strobl
  */
 @RunWith(Parameterized.class)

@@ -15,22 +15,32 @@
  */
 package org.springframework.data.redis.cache;
 
+import static org.springframework.data.redis.connection.ClusterTestVariables.*;
+
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.Delegate;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.stream.Collectors;
 
+import org.junit.runners.model.Statement;
 import org.springframework.data.redis.SettingsUtils;
+import org.springframework.data.redis.connection.RedisClusterConfiguration;
+import org.springframework.data.redis.connection.RedisClusterNode;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.serializer.GenericJackson2JsonRedisSerializer;
 import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
 import org.springframework.data.redis.serializer.OxmSerializer;
 import org.springframework.data.redis.serializer.RedisSerializer;
+import org.springframework.data.redis.test.util.RedisClusterRule;
 import org.springframework.oxm.xstream.XStreamMarshaller;
+import org.springframework.util.StringUtils;
 
 /**
  * @author Christoph Strobl
@@ -39,18 +49,42 @@ class CacheTestParams {
 
 	private static Collection<RedisConnectionFactory> connectionFactories() {
 
-		JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory();
-		jedisConnectionFactory.setPort(SettingsUtils.getPort());
-		jedisConnectionFactory.setHostName(SettingsUtils.getHost());
+		RedisStandaloneConfiguration config = new RedisStandaloneConfiguration();
+		config.setHostName(SettingsUtils.getHost());
+		config.setPort(SettingsUtils.getPort());
+
+		List<RedisConnectionFactory> factoryList = new ArrayList<>(3);
+
+		// Jedis Standalone
+		JedisConnectionFactory jedisConnectionFactory = new JedisConnectionFactory(config);
 		jedisConnectionFactory.afterPropertiesSet();
+		factoryList.add(new FixDamnedJunitParameterizedNameForConnectionFactory(jedisConnectionFactory, ""));
 
-		LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory();
-		lettuceConnectionFactory.setPort(SettingsUtils.getPort());
-		lettuceConnectionFactory.setHostName(SettingsUtils.getHost());
+		// Lettuce Standalone
+		LettuceConnectionFactory lettuceConnectionFactory = new LettuceConnectionFactory(config);
 		lettuceConnectionFactory.afterPropertiesSet();
+		factoryList.add(new FixDamnedJunitParameterizedNameForConnectionFactory(lettuceConnectionFactory, ""));
 
-		return Arrays.asList(new FixDamnedJunitParameterizedNameForConnectionFactory(jedisConnectionFactory),
-				new FixDamnedJunitParameterizedNameForConnectionFactory(lettuceConnectionFactory));
+		if (clusterAvailable()) {
+
+			RedisClusterConfiguration clusterConfiguration = new RedisClusterConfiguration();
+			clusterConfiguration.addClusterNode(new RedisClusterNode(CLUSTER_HOST, MASTER_NODE_1_PORT));
+
+			// Jedis Cluster
+			JedisConnectionFactory jedisClusterConnectionFactory = new JedisConnectionFactory(clusterConfiguration);
+			jedisClusterConnectionFactory.afterPropertiesSet();
+			factoryList
+					.add(new FixDamnedJunitParameterizedNameForConnectionFactory(jedisClusterConnectionFactory, "cluster"));
+
+			// Lettuce Cluster
+			LettuceConnectionFactory lettuceClusterConnectionFactory = new LettuceConnectionFactory(clusterConfiguration);
+			lettuceClusterConnectionFactory.afterPropertiesSet();
+
+			factoryList
+					.add(new FixDamnedJunitParameterizedNameForConnectionFactory(lettuceClusterConnectionFactory, "cluster"));
+		}
+
+		return factoryList;
 	}
 
 	static Collection<Object[]> justConnectionFactories() {
@@ -81,10 +115,11 @@ class CacheTestParams {
 	static class FixDamnedJunitParameterizedNameForConnectionFactory/* ¯\_(ツ)_/¯ */ implements RedisConnectionFactory {
 
 		final @Delegate RedisConnectionFactory connectionFactory;
+		final String addon;
 
 		@Override // Why Junit? Why?
 		public String toString() {
-			return connectionFactory.getClass().getSimpleName();
+			return connectionFactory.getClass().getSimpleName() + (StringUtils.hasText(addon) ? " - [" + addon + "]" : "");
 		}
 	}
 
@@ -97,5 +132,20 @@ class CacheTestParams {
 		public String toString() {
 			return serializer.getClass().getSimpleName();
 		}
+	}
+
+	private static boolean clusterAvailable() {
+
+		try {
+			new RedisClusterRule().apply(new Statement() {
+				@Override
+				public void evaluate() throws Throwable {
+
+				}
+			}, null).evaluate();
+		} catch (Throwable throwable) {
+			return false;
+		}
+		return true;
 	}
 }

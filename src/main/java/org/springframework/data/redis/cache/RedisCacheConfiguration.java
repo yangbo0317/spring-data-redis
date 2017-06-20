@@ -25,30 +25,31 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.util.Assert;
 
 /**
- * {@link RedisCacheConfiguration} helps customizing {@link NRedisCache} behaviour such as caching {@literal null}
- * values, cache key prefixes and binary serialization. <br />
- * Start with {@link RedisCacheConfiguration#defaultCacheConfig()} and customize
+ * Immutable {@link RedisCacheConfiguration} helps customizing {@link NRedisCache} behaviour such as caching
+ * {@literal null} values, cache key prefixes and binary serialization. <br />
+ * Start with {@link RedisCacheConfiguration#defaultCacheConfig()} and customize {@link NRedisCache} behaviour from
+ * there on.
  *
  * @author Christoph Strobl
  * @since 2.0
  */
 public class RedisCacheConfiguration {
 
-	private final Duration timeout;
-	private final Boolean cacheNullValues;
-	private final String defaultPrefix;
-	private final Boolean usePrefix;
+	private final Duration ttl;
+	private final boolean cacheNullValues;
+	private final String keyPrefix;
+	private final boolean usePrefix;
 
 	private final SerializationPair<String> keySerializationPair;
 	private final SerializationPair<?> valueSerializationPair;
 
-	private RedisCacheConfiguration(Duration ttl, Boolean cacheNullValues, Boolean usePrefix, String defaultPrefix,
+	private RedisCacheConfiguration(Duration ttl, Boolean cacheNullValues, Boolean usePrefix, String keyPrefix,
 			SerializationPair<String> keySerializationPair, SerializationPair<?> valueSerializationPair) {
 
-		this.timeout = ttl;
+		this.ttl = ttl;
 		this.cacheNullValues = cacheNullValues;
 		this.usePrefix = usePrefix;
-		this.defaultPrefix = defaultPrefix;
+		this.keyPrefix = keyPrefix;
 		this.keySerializationPair = keySerializationPair;
 		this.valueSerializationPair = valueSerializationPair;
 	}
@@ -73,21 +74,23 @@ public class RedisCacheConfiguration {
 	 * @return new {@link RedisCacheConfiguration}.
 	 */
 	public static RedisCacheConfiguration defaultCacheConfig() {
+
 		return new RedisCacheConfiguration(Duration.ZERO, true, true, null,
 				SerializationPair.fromSerializer(new StringRedisSerializer()),
 				SerializationPair.fromSerializer(new JdkSerializationRedisSerializer()));
 	}
 
 	/**
-	 * Set the timeout to apply for cache entries. Use {@link Duration#ZERO} to have an eternal cache.
+	 * Set the ttl to apply for cache entries. Use {@link Duration#ZERO} to have an eternal cache.
 	 *
-	 * @param timeout must not be {@literal null}.
+	 * @param ttl must not be {@literal null}.
 	 * @return new {@link RedisCacheConfiguration}.
 	 */
-	public RedisCacheConfiguration entryTimeout(Duration timeout) {
+	public RedisCacheConfiguration entryTtl(Duration ttl) {
 
-		Assert.notNull(timeout, "Timeout must not be null!");
-		return new RedisCacheConfiguration(timeout, cacheNullValues, usePrefix, defaultPrefix, keySerializationPair,
+		Assert.notNull(ttl, "Ttl must not be null!");
+
+		return new RedisCacheConfiguration(ttl, cacheNullValues, usePrefix, keyPrefix, keySerializationPair,
 				valueSerializationPair);
 	}
 
@@ -100,21 +103,21 @@ public class RedisCacheConfiguration {
 	public RedisCacheConfiguration prefixKeysWith(String prefix) {
 
 		Assert.notNull(prefix, "Prefix must not be null!");
-		return new RedisCacheConfiguration(timeout, cacheNullValues, true, prefix, keySerializationPair,
+
+		return new RedisCacheConfiguration(ttl, cacheNullValues, true, prefix, keySerializationPair,
 				valueSerializationPair);
 	}
 
 	/**
 	 * Disable caching {@literal null} values. <br />
 	 * <strong>NOTE</strong> any {@link org.springframework.cache.Cache#put(Object, Object)} operation involving
-	 * {@literal null} value will be silently aborted. Nothing will be written to Redis, nothing will be removed. An
-	 * already existing key will still be there afterwards with the very same value as before.
+	 * {@literal null} value will error. Nothing will be written to Redis, nothing will be removed. An already existing
+	 * key will still be there afterwards with the very same value as before.
 	 *
 	 * @return new {@link RedisCacheConfiguration}.
 	 */
 	public RedisCacheConfiguration disableCachingNullValues() {
-		return new RedisCacheConfiguration(timeout, false, usePrefix, defaultPrefix, keySerializationPair,
-				valueSerializationPair);
+		return new RedisCacheConfiguration(ttl, false, usePrefix, keyPrefix, keySerializationPair, valueSerializationPair);
 	}
 
 	/**
@@ -124,8 +127,9 @@ public class RedisCacheConfiguration {
 	 *
 	 * @return new {@link RedisCacheConfiguration}.
 	 */
-	public RedisCacheConfiguration disableCachePrefix() {
-		return new RedisCacheConfiguration(timeout, cacheNullValues, false, defaultPrefix, keySerializationPair,
+	public RedisCacheConfiguration disableKeyPrefix() {
+
+		return new RedisCacheConfiguration(ttl, cacheNullValues, false, keyPrefix, keySerializationPair,
 				valueSerializationPair);
 	}
 
@@ -138,7 +142,8 @@ public class RedisCacheConfiguration {
 	public RedisCacheConfiguration serializeKeysWith(SerializationPair<String> keySerializationPair) {
 
 		Assert.notNull(keySerializationPair, "KeySerializationPair must not be null!");
-		return new RedisCacheConfiguration(timeout, cacheNullValues, usePrefix, defaultPrefix, keySerializationPair,
+
+		return new RedisCacheConfiguration(ttl, cacheNullValues, usePrefix, keyPrefix, keySerializationPair,
 				valueSerializationPair);
 	}
 
@@ -151,32 +156,52 @@ public class RedisCacheConfiguration {
 	public RedisCacheConfiguration serializeValuesWith(SerializationPair<?> valueSerializationPair) {
 
 		Assert.notNull(valueSerializationPair, "ValueSerializationPair must not be null!");
-		return new RedisCacheConfiguration(timeout, cacheNullValues, usePrefix, defaultPrefix, keySerializationPair,
+
+		return new RedisCacheConfiguration(ttl, cacheNullValues, usePrefix, keyPrefix, keySerializationPair,
 				valueSerializationPair);
 	}
 
-	Optional<String> getDefaultPrefix() {
-		return Optional.ofNullable(defaultPrefix);
+	/**
+	 * @return never {@literal null}.
+	 */
+	public Optional<String> getKeyPrefix() {
+		return Optional.ofNullable(keyPrefix);
 	}
 
-	boolean usePrefix() {
-		return usePrefix != null ? usePrefix.booleanValue() : false;
+	/**
+	 * @return {@literal true} if cache keys need to be prefixed with the {@link #getKeyPrefix()} if present or the
+	 *         default which resolves to {@link Cache#getName()}.
+	 */
+	public boolean usePrefix() {
+		return usePrefix;
 	}
 
-	boolean getAllowCacheNullValues() {
-		return cacheNullValues != null ? cacheNullValues.booleanValue() : true;
+	/**
+	 * @return {@literal true} if caching {@literal null} is allowed.
+	 */
+	public boolean getAllowCacheNullValues() {
+		return cacheNullValues;
 	}
 
-	SerializationPair<String> getKeySerializationPair() {
+	/**
+	 * @return never {@literal null}.
+	 */
+	public SerializationPair<String> getKeySerializationPair() {
 		return keySerializationPair;
 	}
 
-	SerializationPair getValueSerializationPair() {
+	/**
+	 * @return never {@literal null}.
+	 */
+	public SerializationPair getValueSerializationPair() {
 		return valueSerializationPair;
 	}
 
-	Duration getTimeout() {
-		return timeout != null ? timeout : Duration.ZERO;
+	/**
+	 * @return The expiration time (ttl) for cache entries. Never {@literal null}.
+	 */
+	public Duration getTtl() {
+		return ttl != null ? ttl : Duration.ZERO;
 	}
 
 }

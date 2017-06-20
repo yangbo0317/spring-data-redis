@@ -17,6 +17,8 @@ package org.springframework.data.redis.cache;
 
 import java.time.Duration;
 
+import org.springframework.lang.Nullable;
+
 /**
  * {@link RedisCacheWriter} provides low level access to redis commands ({@code SET, SETNX, GET, EXPIRE,...} used for
  * caching. <br />
@@ -36,7 +38,7 @@ public interface RedisCacheWriter {
 	 * @param value The value stored for the key. Must not be {@literal null}.
 	 * @param ttl Optional expiration time. Can be {@literal null}.
 	 */
-	void put(String name, byte[] key, byte[] value, Duration ttl);
+	void put(String name, byte[] key, byte[] value, @Nullable Duration ttl);
 
 	/**
 	 * Get the binary value representation from Redis stored for the given key.
@@ -45,6 +47,7 @@ public interface RedisCacheWriter {
 	 * @param key must not be {@literal null}.
 	 * @return {@literal null} if key does not exist.
 	 */
+	@Nullable
 	byte[] get(String name, byte[] key);
 
 	/**
@@ -56,7 +59,8 @@ public interface RedisCacheWriter {
 	 * @param ttl Optional expiration time. Can be {@literal null}.
 	 * @return {@literal null} if the value has been written, the value stored for the key if it already exists.
 	 */
-	byte[] putIfAbsent(String name, byte[] key, byte[] value, Duration ttl);
+	@Nullable
+	byte[] putIfAbsent(String name, byte[] key, byte[] value, @Nullable Duration ttl);
 
 	/**
 	 * Remove the given key from Redis.
@@ -70,7 +74,7 @@ public interface RedisCacheWriter {
 	 * Remove all keys following the given pattern.
 	 *
 	 * @param name The cache name must not be {@literal null}.
-	 * @param pattern The pattern for the keys to remove.
+	 * @param pattern The pattern for the keys to remove. Must not be {@literal null}.
 	 */
 	void clean(String name, byte[] pattern);
 

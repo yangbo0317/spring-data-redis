@@ -28,6 +28,10 @@ import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.util.Assert;
 
 /**
+ * {@link RedisCacheWriter} implementation capable of reading/writing binary data from/to Redis in {@literal standalone}
+ * and {@literal cluster} environments. Works upon a given {@link RedisConnectionFactory} to obtain the actual
+ * {@link RedisConnection}.
+ *
  * @author Christoph Strobl
  * @since 2.0
  */
@@ -61,10 +65,14 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 	}
 
 	public static DefaultRedisCacheWriter nonLockingRedisCacheWriter(RedisConnectionFactory connectionFactory) {
+
+		Assert.notNull(connectionFactory, "ConnectionFactory must not be null!");
 		return new DefaultRedisCacheWriter(connectionFactory);
 	}
 
 	public static DefaultRedisCacheWriter lockingRedisCacheWriter(RedisConnectionFactory connectionFactory) {
+
+		Assert.notNull(connectionFactory, "ConnectionFactory must not be null!");
 		return new DefaultRedisCacheWriter(connectionFactory, Duration.ofMillis(50));
 	}
 
@@ -128,6 +136,11 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 		execute(name, connection -> connection.del(key));
 	}
 
+	/**
+	 * Explicitly set a write lock on a cache.
+	 *
+	 * @param name the name of the cache to lock.
+	 */
 	public void lock(String name) {
 		execute(name, connection -> doLock(name, connection));
 	}
@@ -136,6 +149,11 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 		return connection.setNX(createCacheLockKey(name), new byte[] {});
 	}
 
+	/**
+	 * Explicitly remove a write lock from a cache.
+	 *
+	 * @param name the name of the cache to unlock.
+	 */
 	public void unlock(String name) {
 		executeWithoutLockCheck(connection -> doUnlock(name, connection));
 	}
@@ -144,6 +162,12 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 		return connection.del(createCacheLockKey(name));
 	}
 
+	/**
+	 * Check if a cache has set a lock.
+	 *
+	 * @param name the name of the cache to check for presence of a lock.
+	 * @return {@literal true} if lock found.
+	 */
 	public boolean isLoked(String name) {
 		return executeWithoutLockCheck(connection -> doCheckLock(name, connection));
 	}
@@ -183,7 +207,14 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 		});
 	}
 
-	public <T> T execute(String name, ConnectionCallback<T> callback) {
+	/**
+	 * @return {@literal true} if {@link RedisCacheWriter} uses locks.
+	 */
+	public boolean isLockingCacheWriter() {
+		return !sleepTime.isZero() && !sleepTime.isNegative();
+	}
+
+	<T> T execute(String name, ConnectionCallback<T> callback) {
 
 		RedisConnection connection = connectionFactory.getConnection();
 		try {
@@ -204,10 +235,6 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 		} finally {
 			connection.close();
 		}
-	}
-
-	public boolean isLockingCacheWriter() {
-		return !sleepTime.isZero() && !sleepTime.isNegative();
 	}
 
 	private void checkAndPotentiallyWaitUntilUnlocked(String name, RedisConnection connection) {
@@ -234,6 +261,11 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 		return (name + "~lock").getBytes(Charset.forName("UTF-8"));
 	}
 
+	/**
+	 * @author Christoph Strobl
+	 * @param <T>
+	 * @since 2.0
+	 */
 	interface ConnectionCallback<T> {
 		T doWithConnection(RedisConnection connection);
 	}

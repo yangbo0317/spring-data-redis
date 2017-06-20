@@ -26,12 +26,13 @@ import org.springframework.cache.support.SimpleValueWrapper;
 import org.springframework.core.convert.support.ConfigurableConversionService;
 import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
 import org.springframework.format.support.DefaultFormattingConversionService;
+import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
 import org.springframework.util.ReflectionUtils;
 
 /**
- * {@link org.springframework.cache.Cache} implementation suitable for Redis.
+ * {@link org.springframework.cache.Cache} implementation using for Redis as underlying store.
  *
  * @author Christoph Strobl
  * @since 2.0
@@ -74,7 +75,7 @@ public class NRedisCache extends AbstractValueAdaptingCache {
 		this.cacheWriter = cacheWriter;
 		this.cacheConfig = cacheConfig;
 
-		conversionService.addConverter(String.class, byte[].class, source -> source.getBytes(Charset.forName("UTF8")));
+		conversionService.addConverter(String.class, byte[].class, source -> source.getBytes(Charset.forName("UTF-8")));
 	}
 
 	@Override
@@ -125,7 +126,7 @@ public class NRedisCache extends AbstractValueAdaptingCache {
 					name));
 		}
 
-		cacheWriter.put(name, createAndConvertCacheKey(key), serializeCacheValue(cacheValue), cacheConfig.getTimeout());
+		cacheWriter.put(name, createAndConvertCacheKey(key), serializeCacheValue(cacheValue), cacheConfig.getTtl());
 	}
 
 	@Override
@@ -138,7 +139,7 @@ public class NRedisCache extends AbstractValueAdaptingCache {
 		}
 
 		byte[] result = cacheWriter.putIfAbsent(name, createAndConvertCacheKey(key), serializeCacheValue(cacheValue),
-				cacheConfig.getTimeout());
+				cacheConfig.getTtl());
 
 		if (result == null) {
 			return null;
@@ -159,7 +160,24 @@ public class NRedisCache extends AbstractValueAdaptingCache {
 		cacheWriter.clean(name, pattern);
 	}
 
-	protected Object preProcessCacheValue(Object value) {
+	/**
+	 * Get {@link RedisCacheConfiguration} used.
+	 *
+	 * @return immutable {@link RedisCacheConfiguration}. Never {@literal null}.
+	 */
+	public RedisCacheConfiguration getCacheConfiguration() {
+		return cacheConfig;
+	}
+
+	/**
+	 * Customization hook called before passing object to
+	 * {@link org.springframework.data.redis.serializer.RedisSerializer}.
+	 *
+	 * @param value can be {@literal null}.
+	 * @return preprocessed value. Can be {@literal null}.
+	 */
+	@Nullable
+	protected Object preProcessCacheValue(@Nullable Object value) {
 
 		if (value != null) {
 			return value;
@@ -168,10 +186,22 @@ public class NRedisCache extends AbstractValueAdaptingCache {
 		return isAllowNullValues() ? NULL_VALUE : null;
 	}
 
+	/**
+	 * Serialize the key.
+	 *
+	 * @param cacheKey must not be {@literal null}.
+	 * @return never {@literal null}.
+	 */
 	protected byte[] serializeCacheKey(String cacheKey) {
 		return cacheConfig.getKeySerializationPair().write(cacheKey).array();
 	}
 
+	/**
+	 * Serialize the value to cache.
+	 * 
+	 * @param value must not be {@literal null}.
+	 * @return never {@literal null}.
+	 */
 	protected byte[] serializeCacheValue(Object value) {
 
 		if (isAllowNullValues() && value instanceof NullValue) {
@@ -181,6 +211,13 @@ public class NRedisCache extends AbstractValueAdaptingCache {
 		return cacheConfig.getValueSerializationPair().write(value).array();
 	}
 
+	/**
+	 * Deserialize the given value to the actual cache value.
+	 *
+	 * @param value must not be {@literal null}.
+	 * @return can be {@literal null}.
+	 */
+	@Nullable
 	protected Object deserializeCacheValue(byte[] value) {
 
 		if (isAllowNullValues() && ObjectUtils.nullSafeEquals(value, BINARY_NULL_VALUE)) {
@@ -205,7 +242,7 @@ public class NRedisCache extends AbstractValueAdaptingCache {
 	}
 
 	private String prefixCacheKey(String key) {
-		return cacheConfig.getDefaultPrefix().orElseGet(() -> name + "::") + key;
+		return cacheConfig.getKeyPrefix().orElseGet(() -> name + "::") + key;
 	}
 
 	private <T> T valueFromLoader(Object key, Callable<T> valueLoader) {
