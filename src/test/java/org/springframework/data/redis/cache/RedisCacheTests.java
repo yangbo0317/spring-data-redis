@@ -50,7 +50,7 @@ import org.springframework.test.util.ReflectionTestUtils;
  * @author Christoph Strobl
  */
 @RunWith(Parameterized.class)
-public class NRedisCacheTests {
+public class RedisCacheTests {
 
 	String key = "key-1";
 	String cacheKey = "cache::" + key;
@@ -66,7 +66,7 @@ public class NRedisCacheTests {
 	RedisSerializer serializer;
 	RedisCache cache;
 
-	public NRedisCacheTests(RedisConnectionFactory connectionFactory, RedisSerializer serializer) {
+	public RedisCacheTests(RedisConnectionFactory connectionFactory, RedisSerializer serializer) {
 
 		this.connectionFactory = connectionFactory;
 		this.serializer = serializer;

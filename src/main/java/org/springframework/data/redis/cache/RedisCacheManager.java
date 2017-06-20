@@ -294,7 +294,7 @@ public class RedisCacheManager extends AbstractTransactionSupportingCacheManager
 		 *
 		 * @return new instance of {@link RedisCacheManager}.
 		 */
-		public RedisCacheManager build() {
+		public RedisCacheManager createAndGet() {
 
 			RedisCacheManager cm = new RedisCacheManager(cacheWriter, defaultCacheConfiguration, intialCaches) {
 

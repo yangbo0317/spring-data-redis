@@ -30,12 +30,18 @@ import org.springframework.util.Assert;
 /**
  * {@link RedisCacheWriter} implementation capable of reading/writing binary data from/to Redis in {@literal standalone}
  * and {@literal cluster} environments. Works upon a given {@link RedisConnectionFactory} to obtain the actual
- * {@link RedisConnection}.
+ * {@link RedisConnection}. <br />
+ * {@link DefaultRedisCacheWriter} can be used in {@link #lockingRedisCacheWriter(RedisConnectionFactory) locking} or
+ * {@link #nonLockingRedisCacheWriter(RedisConnectionFactory) non-locking} mode. While {@literal non-locking} aims for
+ * maximum performance it may result in overlapping, non atomic, command execution for operations spanning multiple
+ * Redis interactions like {@code putIfAbsent}. The {@literal locking} counterpart prevents command overlap by setting
+ * an explicit lock key and checking against presence of this key which leads to additional requests and potential
+ * command wait times.
  *
  * @author Christoph Strobl
  * @since 2.0
  */
-class DefaultRedisCacheWriter implements RedisCacheWriter {
+public class DefaultRedisCacheWriter implements RedisCacheWriter {
 
 	private static final byte[] CLEAN_SCRIPT = "local keys = redis.call('KEYS', ARGV[1]); local keysCount = table.getn(keys); if(keysCount > 0) then for _, key in ipairs(keys) do redis.call('del', key); end; end; return keysCount;"
 			.getBytes(Charset.forName("UTF-8"));
@@ -64,12 +70,24 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 		this.sleepTime = sleepTime;
 	}
 
+	/**
+	 * Create new {@link RedisCacheWriter} without locking behavior.
+	 *
+	 * @param connectionFactory must not be {@literal null}.
+	 * @return new instance of {@link DefaultRedisCacheWriter}.
+	 */
 	public static DefaultRedisCacheWriter nonLockingRedisCacheWriter(RedisConnectionFactory connectionFactory) {
 
 		Assert.notNull(connectionFactory, "ConnectionFactory must not be null!");
 		return new DefaultRedisCacheWriter(connectionFactory);
 	}
 
+	/**
+	 * Create new {@link RedisCacheWriter} with locking behavior.
+	 *
+	 * @param connectionFactory must not be {@literal null}.
+	 * @return new instance of {@link DefaultRedisCacheWriter}.
+	 */
 	public static DefaultRedisCacheWriter lockingRedisCacheWriter(RedisConnectionFactory connectionFactory) {
 
 		Assert.notNull(connectionFactory, "ConnectionFactory must not be null!");
@@ -115,15 +133,26 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 
 		return execute(name, connection -> {
 
-			if (connection.setNX(key, value)) {
-
-				if (shouldExpireWithin(ttl)) {
-					connection.pExpire(key, ttl.toMillis());
-				}
-				return null;
+			if (isLockingCacheWriter()) {
+				doLock(name, connection);
 			}
 
-			return connection.get(key);
+			try {
+				if (connection.setNX(key, value)) {
+
+					if (shouldExpireWithin(ttl)) {
+						connection.pExpire(key, ttl.toMillis());
+					}
+					return null;
+				}
+
+				return connection.get(key);
+			} finally {
+
+				if (isLockingCacheWriter()) {
+					doUnlock(name, connection);
+				}
+			}
 		});
 	}
 
@@ -184,12 +213,15 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 
 		execute(name, connection -> {
 
-			if (isLockingCacheWriter()) {
-				doLock(name, connection);
-			}
+			boolean wasLocked = false;
 
 			try {
 				if (connection instanceof RedisClusterConnection) {
+
+					if (isLockingCacheWriter()) {
+						doLock(name, connection);
+						wasLocked = true;
+					}
 
 					byte[][] keys = connection.keys(pattern).stream().toArray(size -> new byte[size][]);
 					connection.del(keys);
@@ -198,7 +230,7 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 				}
 			} finally {
 
-				if (isLockingCacheWriter()) {
+				if (wasLocked && isLockingCacheWriter()) {
 					doUnlock(name, connection);
 				}
 			}
@@ -262,11 +294,12 @@ class DefaultRedisCacheWriter implements RedisCacheWriter {
 	}
 
 	/**
-	 * @author Christoph Strobl
 	 * @param <T>
+	 * @author Christoph Strobl
 	 * @since 2.0
 	 */
 	interface ConnectionCallback<T> {
+
 		T doWithConnection(RedisConnection connection);
 	}
 }

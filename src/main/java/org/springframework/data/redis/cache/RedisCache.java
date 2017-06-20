@@ -63,7 +63,7 @@ public class RedisCache extends AbstractValueAdaptingCache {
 	 * @param cacheWriter must not be {@literal null}.
 	 * @param cacheConfig must not be {@literal null}.
 	 */
-	public RedisCache(String name, RedisCacheWriter cacheWriter, RedisCacheConfiguration cacheConfig) {
+	RedisCache(String name, RedisCacheWriter cacheWriter, RedisCacheConfiguration cacheConfig) {
 
 		super(cacheConfig.getAllowCacheNullValues());
 
@@ -227,11 +227,13 @@ public class RedisCache extends AbstractValueAdaptingCache {
 		return cacheConfig.getValueSerializationPair().read(ByteBuffer.wrap(value));
 	}
 
-	private byte[] createAndConvertCacheKey(Object key) {
-		return serializeCacheKey(createCacheKey(key));
-	}
-
-	private String createCacheKey(Object key) {
+	/**
+	 * Customization hook for creating cache key before it gets serialized.
+	 *
+	 * @param key will never be {@literal null}.
+	 * @return never {@literal null}.
+	 */
+	protected String createCacheKey(Object key) {
 
 		String convertedKey = conversionService.convert(key, String.class);
 		if (!cacheConfig.usePrefix()) {
@@ -239,6 +241,10 @@ public class RedisCache extends AbstractValueAdaptingCache {
 		}
 
 		return prefixCacheKey(convertedKey);
+	}
+
+	private byte[] createAndConvertCacheKey(Object key) {
+		return serializeCacheKey(createCacheKey(key));
 	}
 
 	private String prefixCacheKey(String key) {
