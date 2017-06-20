@@ -25,9 +25,9 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 import org.springframework.util.Assert;
 
 /**
- * Immutable {@link RedisCacheConfiguration} helps customizing {@link NRedisCache} behaviour such as caching
+ * Immutable {@link RedisCacheConfiguration} helps customizing {@link RedisCache} behaviour such as caching
  * {@literal null} values, cache key prefixes and binary serialization. <br />
- * Start with {@link RedisCacheConfiguration#defaultCacheConfig()} and customize {@link NRedisCache} behaviour from
+ * Start with {@link RedisCacheConfiguration#defaultCacheConfig()} and customize {@link RedisCache} behaviour from
  * there on.
  *
  * @author Christoph Strobl

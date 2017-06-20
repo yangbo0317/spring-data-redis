@@ -69,7 +69,7 @@ public class LegacyRedisCacheTests {
 	RedisConnectionFactory connectionFactory;
 	final boolean allowCacheNullValues;
 
-	NRedisCache cache;
+	RedisCache cache;
 
 	public LegacyRedisCacheTests(RedisTemplate template, ObjectFactory<Object> keyFactory,
 								 ObjectFactory<Object> valueFactory, boolean allowCacheNullValues) {
@@ -110,7 +110,7 @@ public class LegacyRedisCacheTests {
 	}
 
 	@SuppressWarnings("unchecked")
-	private NRedisCache createCache() {
+	private RedisCache createCache() {
 
 		RedisCacheConfiguration cacheConfiguration = RedisCacheConfiguration.defaultCacheConfig()
 				.entryTtl(Duration.ofSeconds(10));
@@ -118,7 +118,7 @@ public class LegacyRedisCacheTests {
 			cacheConfiguration = cacheConfiguration.disableCachingNullValues();
 		}
 
-		return new NRedisCache(CACHE_NAME, new DefaultRedisCacheWriter(connectionFactory), cacheConfiguration);
+		return new RedisCache(CACHE_NAME, new DefaultRedisCacheWriter(connectionFactory), cacheConfiguration);
 	}
 
 	protected Object getValue() {

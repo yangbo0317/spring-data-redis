@@ -40,7 +40,7 @@ public class NRedisCacheManagerUnitTests {
 
 		RedisCacheConfiguration configuration = RedisCacheConfiguration.defaultCacheConfig().disableKeyPrefix();
 
-		NRedisCacheManager cm = NRedisCacheManager.usingCacheWriter(cacheWriter).withCacheDefaults(configuration).build();
+		RedisCacheManager cm = RedisCacheManager.usingCacheWriter(cacheWriter).withCacheDefaults(configuration).build();
 		assertThat(cm.getMissingCache("new-cache").getCacheConfiguration()).isEqualTo(configuration);
 	}
 
@@ -49,21 +49,21 @@ public class NRedisCacheManagerUnitTests {
 
 		RedisCacheConfiguration configuration = RedisCacheConfiguration.defaultCacheConfig().disableKeyPrefix();
 
-		NRedisCacheManager cm = NRedisCacheManager.usingCacheWriter(cacheWriter)
+		RedisCacheManager cm = RedisCacheManager.usingCacheWriter(cacheWriter)
 				.withInitialCacheConfigurations(Collections.singletonMap("predefined-cache", configuration)).build();
 
-		assertThat(((NRedisCache) cm.getCache("predefined-cache")).getCacheConfiguration()).isEqualTo(configuration);
+		assertThat(((RedisCache) cm.getCache("predefined-cache")).getCacheConfiguration()).isEqualTo(configuration);
 		assertThat(cm.getMissingCache("new-cache").getCacheConfiguration()).isNotEqualTo(configuration);
 	}
 
 	@Test // DATAREDIS-481
 	public void transactionAwareCacheManagerShouldDecoracteCache() {
 
-		Cache cache = NRedisCacheManager.usingCacheWriter(cacheWriter).transactionAware().build()
+		Cache cache = RedisCacheManager.usingCacheWriter(cacheWriter).transactionAware().build()
 				.getCache("decoracted-cache");
 
 		assertThat(cache).isInstanceOfAny(TransactionAwareCacheDecorator.class);
-		assertThat(ReflectionTestUtils.getField(cache, "targetCache")).isInstanceOf(NRedisCache.class);
+		assertThat(ReflectionTestUtils.getField(cache, "targetCache")).isInstanceOf(RedisCache.class);
 	}
 
 }

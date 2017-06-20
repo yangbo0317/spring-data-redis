@@ -44,7 +44,7 @@ import org.springframework.data.redis.serializer.RedisSerializer;
 import org.springframework.test.util.ReflectionTestUtils;
 
 /**
- * Tests for {@link NRedisCache} with {@link DefaultRedisCacheWriter} using different {@link RedisSerializer} and
+ * Tests for {@link RedisCache} with {@link DefaultRedisCacheWriter} using different {@link RedisSerializer} and
  * {@link RedisConnectionFactory} pairs.
  *
  * @author Christoph Strobl
@@ -64,7 +64,7 @@ public class NRedisCacheTests {
 
 	RedisConnectionFactory connectionFactory;
 	RedisSerializer serializer;
-	NRedisCache cache;
+	RedisCache cache;
 
 	public NRedisCacheTests(RedisConnectionFactory connectionFactory, RedisSerializer serializer) {
 
@@ -90,7 +90,7 @@ public class NRedisCacheTests {
 
 		doWithConnection(RedisConnection::flushAll);
 
-		cache = new NRedisCache("cache", new DefaultRedisCacheWriter(connectionFactory),
+		cache = new RedisCache("cache", new DefaultRedisCacheWriter(connectionFactory),
 				RedisCacheConfiguration.defaultCacheConfig().serializeValuesWith(SerializationPair.fromSerializer(serializer)));
 	}
 
