@@ -52,7 +52,7 @@ public class RedisRepositoryConfigurationExtensionUnitTests {
 	Environment environment = new StandardEnvironment();
 	BeanDefinitionRegistry registry = new DefaultListableBeanFactory();
 	RepositoryConfigurationSource configurationSource = new AnnotationRepositoryConfigurationSource(metadata,
-			EnableRedisRepositories.class, loader, environment, registry);
+			EnableRedisRepositories.class, loader, environment);
 
 	RedisRepositoryConfigurationExtension extension;
 
@@ -144,7 +144,7 @@ public class RedisRepositoryConfigurationExtensionUnitTests {
 		BeanDefinitionRegistry registry = new SimpleBeanDefinitionRegistry();
 
 		RepositoryConfigurationSource configurationSource = new AnnotationRepositoryConfigurationSource(metadata,
-				EnableRedisRepositories.class, loader, environment, registry);
+				EnableRedisRepositories.class, loader, environment);
 
 		RedisRepositoryConfigurationExtension extension = new RedisRepositoryConfigurationExtension();
 
